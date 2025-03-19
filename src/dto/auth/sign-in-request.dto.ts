@@ -8,7 +8,7 @@ const signInRequestDTO = t.Object(
       error: "Password must be at least 6 characters long",
     }),
   },
-  { error: "Invalid body" }
+  { error: "Invalid request body" }
 );
 
 type SignInRequestDTO = typeof signInRequestDTO.static;

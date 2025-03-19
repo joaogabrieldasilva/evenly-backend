@@ -1,12 +1,10 @@
 import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { authRoutes } from "./routes/auth.routes";
-import { userRoutes } from "./routes/user.routes";
-import { authMiddleware } from "./middlewares/auth-middleware";
+import { tripGroupsRoutes } from "./routes/trip-groups.routes";
 
-const app = new Elysia()
-  .use(authMiddleware)
-  .onError(({ code, error }) => {
+export const app = new Elysia()
+  .onError(({ code, error, set }) => {
     if (code === "UNKNOWN") {
       return {
         success: false,
@@ -14,14 +12,14 @@ const app = new Elysia()
       };
     }
 
+    set.status = Number(code);
     return {
       success: false,
       message: "message" in error ? error?.message! : "",
     };
   })
   .use(authRoutes)
-  .use(userRoutes)
-
+  .use(tripGroupsRoutes)
   .use(swagger())
   .listen(3000);
 

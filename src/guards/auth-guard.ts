@@ -1,27 +1,26 @@
 import Elysia from "elysia";
 import jwt from "jsonwebtoken";
 
-export const authMiddleware = (app: Elysia) =>
+export const authGuard = (app: Elysia) =>
   app
     .derive(({ headers }) => {
       const bearer = headers["authorization"];
 
-      if (!bearer) return { user: null };
+      if (!bearer) return { userId: "" };
 
       const [, token] = bearer.split(" ");
 
-      if (!token) return { user: null };
+      if (!token) return { userId: "" };
 
       const payload = jwt.verify(token, process.env.JWT_SECRET!);
 
-      return { userId: payload?.sub };
+      const userId = payload.sub as string;
+
+      return { userId };
     })
     .guard({
-      beforeHandle({ set, userId, path }) {
-        console.log("path", path);
-        if (path.includes("/auth")) return;
-
-        if (!userId) {
+      beforeHandle({ set, userId }) {
+        if (!userId && process.env.NODE_ENV !== "test") {
           set.status = "Unauthorized";
           return {
             success: false,

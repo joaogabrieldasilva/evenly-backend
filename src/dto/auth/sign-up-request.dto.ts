@@ -9,7 +9,7 @@ const signUpRequestDTO = t.Object(
     }),
     name: t.String(),
   },
-  { error: "Invalid body" }
+  { error: "Invalid request body" }
 );
 
 type SignUpRequestDTO = typeof signUpRequestDTO.static;
