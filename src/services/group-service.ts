@@ -1,8 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../database";
-import { groups, users, usersGroups } from "../database/schema";
+import { groups, transactions, users, usersGroups } from "../database/schema";
 import { CreateTripGroupRequestDTO } from "../dto/groups/create-group-request.dto";
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
+import { PaginatedRequestDTO } from "../dto/generic/paginated-request-params.dto";
+import { withPagination } from "../utils/with-pagination";
 
 export abstract class TripGroupService {
   static async createTripGroup(
@@ -63,16 +65,56 @@ export abstract class TripGroupService {
     }
   }
 
-  static async findTripGroupsByUserId(userId: string) {
-    const tripGroups = await db.query.usersGroups.findMany({
-      where: eq(usersGroups.userId, userId),
-      columns: {},
-      with: {
-        tripGroup: true,
-      },
-    });
+  static async findTripGroupsByUserId(
+    userId: string,
+    { page = 1, pageSize = 10 }: PaginatedRequestDTO
+  ) {
+    const currentPage = (page - 1) * pageSize;
 
-    return tripGroups.map((item) => item.tripGroup);
+    const totalItemsSelect = (
+      await db
+        .select({
+          totalPages: sql<number>`cast(COUNT(DISTINCT ${groups.id}) as int)`.as(
+            "totalPages"
+          ),
+        })
+        .from(usersGroups)
+        .leftJoin(groups, eq(usersGroups.groupId, groups.id))
+        .where(eq(usersGroups.userId, userId))
+    )[0];
+
+    const totalItems = totalItemsSelect?.totalPages || 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    const userGroups = await withPagination(
+      db
+        .select({
+          id: groups.id,
+          name: groups.name,
+          description: groups.description,
+
+          totalExpenses:
+            sql<number>`cast(COALESCE(SUM(${transactions.amount}), 0) as int)`.as(
+              "totalExpenses"
+            ),
+        })
+        .from(usersGroups)
+        .leftJoin(groups, eq(usersGroups.groupId, groups.id))
+        .leftJoin(transactions, eq(transactions.groupId, groups.id))
+        .where(eq(usersGroups.userId, userId))
+        .groupBy(groups.id)
+        .$dynamic(),
+      asc(groups.id),
+      currentPage,
+      pageSize
+    );
+
+    return {
+      groups: userGroups,
+      page,
+      totalItems,
+      totalPages,
+    };
   }
 
   static async findTripGroupsUsers(tripGroupId: string) {

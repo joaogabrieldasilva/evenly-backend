@@ -4,8 +4,9 @@ import { authGuard } from "../guards/auth-guard";
 import { TripGroupService } from "../services/group-service";
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 import { TransactionService } from "../services/transaction-service";
+import { paginatedRequestParamsDTO } from "../dto/generic/paginated-request-params.dto";
 
-export const tripGroupsRoutes = new Elysia({ prefix: "/trip-groups" })
+export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   .use(authGuard)
   .error("404", GroupNotFoundException)
   .post(
@@ -15,36 +16,40 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/trip-groups" })
       body: createGroupRequestDTO,
     }
   )
-  .get("", ({ userId }) => {
-    return TripGroupService.findTripGroupsByUserId(userId);
-  })
   .get(
-    ":tripGroupId",
-    ({ params: { tripGroupId } }) =>
-      TripGroupService.findTripGroupById(tripGroupId),
+    "",
+    ({ userId, query }) => {
+      return TripGroupService.findTripGroupsByUserId(userId, query);
+    },
+    {
+      query: paginatedRequestParamsDTO,
+    }
+  )
+  .get(
+    ":groupId",
+    ({ params: { groupId } }) => TripGroupService.findTripGroupById(groupId),
     {
       params: t.Object({
-        tripGroupId: t.String(),
+        groupId: t.String(),
       }),
     }
   )
   .get(
-    ":tripGroupId/users",
-    ({ params: { tripGroupId } }) =>
-      TripGroupService.findTripGroupsUsers(tripGroupId),
+    ":groupId/users",
+    ({ params: { groupId } }) => TripGroupService.findTripGroupsUsers(groupId),
     {
       params: t.Object({
-        tripGroupId: t.String(),
+        groupId: t.String(),
       }),
     }
   )
   .get(
-    ":tripGroupId/transactions-balance",
-    ({ params: { tripGroupId } }) =>
-      TransactionService.getGroupTransactionsBalance(tripGroupId),
+    ":groupId/transactions-balance",
+    ({ params: { groupId } }) =>
+      TransactionService.getGroupTransactionsBalance(groupId),
     {
       params: t.Object({
-        tripGroupId: t.String(),
+        groupId: t.String(),
       }),
     }
   );

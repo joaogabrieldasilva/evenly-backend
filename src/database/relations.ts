@@ -8,19 +8,24 @@ import {
 } from "./schema";
 
 const usersRelations = relations(users, ({ many }) => ({
-  usersTripGroups: many(usersGroups),
+  usersGroups: many(usersGroups),
 }));
 
-const tripGroupsRelations = relations(groups, ({ many }) => ({
-  usersTripGroups: many(usersGroups),
+const groupsRelations = relations(groups, ({ many }) => ({
+  usersGroups: many(usersGroups),
+  transactions: many(transactions),
 }));
 
-const transactionsRelations = relations(transactions, ({ many }) => ({
+const transactionsRelations = relations(transactions, ({ one, many }) => ({
   usersTransactions: many(usersTransactions),
+  group: one(groups, {
+    fields: [transactions.groupId],
+    references: [groups.id],
+  }),
 }));
 
 const usersToGroupsRelations = relations(usersGroups, ({ one }) => ({
-  tripGroup: one(groups, {
+  group: one(groups, {
     fields: [usersGroups.groupId],
     references: [groups.id],
   }),
@@ -43,7 +48,7 @@ const usersTransactionsRelations = relations(usersTransactions, ({ one }) => ({
 
 export {
   usersRelations,
-  tripGroupsRelations,
+  groupsRelations,
   usersToGroupsRelations,
   usersTransactionsRelations,
   transactionsRelations,

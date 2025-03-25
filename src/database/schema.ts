@@ -51,7 +51,7 @@ const transactions = pgTable("transactions", {
   authorId: varchar("author_id")
     .notNull()
     .references(() => users.id),
-  groupId: varchar("trip_group_id")
+  groupId: varchar("group_id")
     .notNull()
     .references(() => groups.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),

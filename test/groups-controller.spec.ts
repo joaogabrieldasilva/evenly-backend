@@ -47,8 +47,8 @@ const data = [
   },
 ] as const;
 
-describe("Trip Groups Controller", () => {
-  it("should return user's trip groups", async () => {
+describe("Groups Controller", () => {
+  it("should return user's groups", async () => {
     const userBalance: Record<
       string,
       {
