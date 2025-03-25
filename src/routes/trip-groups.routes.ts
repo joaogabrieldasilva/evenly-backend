@@ -3,6 +3,7 @@ import { createTripGroupRequestDTO } from "../dto/trip-groups/create-trip-group-
 import { authGuard } from "../guards/auth-guard";
 import { TripGroupService } from "../services/trip-group-service";
 import { TripGroupNotFoundException } from "../exceptions/trip-group-not-found-exception";
+import { TransactionService } from "../services/transaction-service";
 
 export const tripGroupsRoutes = new Elysia({ prefix: "/trip-groups" })
   .use(authGuard)
@@ -31,6 +32,16 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/trip-groups" })
     ":tripGroupId/users",
     ({ params: { tripGroupId } }) =>
       TripGroupService.findTripGroupsUsers(tripGroupId),
+    {
+      params: t.Object({
+        tripGroupId: t.String(),
+      }),
+    }
+  )
+  .get(
+    ":tripGroupId/transactions-balance",
+    ({ params: { tripGroupId } }) =>
+      TransactionService.getGroupTransactionsBalance(tripGroupId),
     {
       params: t.Object({
         tripGroupId: t.String(),
