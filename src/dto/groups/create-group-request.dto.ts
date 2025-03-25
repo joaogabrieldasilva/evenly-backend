@@ -1,6 +1,6 @@
 import { t } from "elysia";
 
-const createTripGroupRequestDTO = t.Object(
+const createGroupRequestDTO = t.Object(
   {
     name: t.String({ error: "Trip group name is required" }),
     description: t.Optional(t.String()),
@@ -9,6 +9,6 @@ const createTripGroupRequestDTO = t.Object(
   { error: "Invalid request body" }
 );
 
-type CreateTripGroupRequestDTO = typeof createTripGroupRequestDTO.static;
+type CreateTripGroupRequestDTO = typeof createGroupRequestDTO.static;
 
-export { createTripGroupRequestDTO, CreateTripGroupRequestDTO };
+export { createGroupRequestDTO, CreateTripGroupRequestDTO };

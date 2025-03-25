@@ -1,31 +1,31 @@
 import { relations } from "drizzle-orm";
 import {
   transactions,
-  tripGroups,
+  groups,
   users,
   usersTransactions,
-  usersTripGroups,
+  usersGroups,
 } from "./schema";
 
 const usersRelations = relations(users, ({ many }) => ({
-  usersTripGroups: many(usersTripGroups),
+  usersTripGroups: many(usersGroups),
 }));
 
-const tripGroupsRelations = relations(tripGroups, ({ many }) => ({
-  usersTripGroups: many(usersTripGroups),
+const tripGroupsRelations = relations(groups, ({ many }) => ({
+  usersTripGroups: many(usersGroups),
 }));
 
 const transactionsRelations = relations(transactions, ({ many }) => ({
   usersTransactions: many(usersTransactions),
 }));
 
-const usersToGroupsRelations = relations(usersTripGroups, ({ one }) => ({
-  tripGroup: one(tripGroups, {
-    fields: [usersTripGroups.tripGroupId],
-    references: [tripGroups.id],
+const usersToGroupsRelations = relations(usersGroups, ({ one }) => ({
+  tripGroup: one(groups, {
+    fields: [usersGroups.groupId],
+    references: [groups.id],
   }),
   user: one(users, {
-    fields: [usersTripGroups.userId],
+    fields: [usersGroups.userId],
     references: [users.id],
   }),
 }));
@@ -39,10 +39,6 @@ const usersTransactionsRelations = relations(usersTransactions, ({ one }) => ({
     fields: [usersTransactions.userId],
     references: [users.id],
   }),
-  //   payer: one(users, {
-  //     fields: [usersTransactions.payerId],
-  //     references: [users.id],
-  //   }),
 }));
 
 export {

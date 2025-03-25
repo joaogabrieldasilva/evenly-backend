@@ -1,69 +1,54 @@
-import { sql } from "drizzle-orm";
-import { db } from "../database";
-import { transactions, usersTransactions } from "../database/schema";
-import { CreateTransactionRequestDTO } from "../dto/transactions/create-transaction-request.dto";
+import { treaty } from "@elysiajs/eden";
+import { describe, expect, it } from "bun:test";
+import { app } from "../src";
 
-export abstract class TransactionService {
-  static async createTransaction(
-    userId: string,
-    { amount, borrowersIds, groupId }: CreateTransactionRequestDTO
-  ) {
-    return db.transaction(async (t) => {
-      const transaction = (
-        await t
-          .insert(transactions)
-          .values({
-            amount: amount * 100,
-            authorId: userId,
-            groupId,
-          })
-          .returning()
-      )[0];
+const data = [
+  {
+    user_id: "fhsos0cwdht7mf96h7p7ut35",
+    author_id: "vob0e8r4v2ap0zgk11g5e9vp",
+    debtor_name: "Bruno",
+    creditor_name: "Joao",
+    amount: "30000",
+  },
+  {
+    user_id: "fhsos0cwdht7mf96h7p7ut35",
+    author_id: "vob0e8r4v2ap0zgk11g5e9vp",
+    debtor_name: "Bruno",
+    creditor_name: "Joao",
+    amount: "30000",
+  },
+  {
+    user_id: "fhsos0cwdht7mf96h7p7ut35",
+    author_id: "vob0e8r4v2ap0zgk11g5e9vp",
+    debtor_name: "Bruno",
+    creditor_name: "Joao",
+    amount: "60000",
+  },
+  {
+    user_id: "ndpp7vo03qmsh0tx8loz56rj",
+    author_id: "srfe28bj4rvxkytrlil27djp",
+    debtor_name: "Rafael",
+    creditor_name: "Georg",
+    amount: "10000",
+  },
+  {
+    user_id: "s1xo8mwv89iu5w75qly6vnwf",
+    author_id: "fhsos0cwdht7mf96h7p7ut35",
+    debtor_name: "Natalia",
+    creditor_name: "Bruno",
+    amount: "30000",
+  },
+  {
+    user_id: "srfe28bj4rvxkytrlil27djp",
+    author_id: "ndpp7vo03qmsh0tx8loz56rj",
+    debtor_name: "Georg",
+    creditor_name: "Rafael",
+    amount: "40000",
+  },
+] as const;
 
-      await t.insert(usersTransactions).values(
-        borrowersIds.map((userId) => ({
-          transactionId: transaction?.id,
-          userId,
-        }))
-      );
-
-      return transaction;
-    });
-  }
-
-  static async getGroupTransactionsBalance(groupId: string) {
-    const query = sql`
-      SELECT
-        u.id AS user_id,
-        u2.id AS author_id,
-        u.name AS debtor_name,
-        u2.name AS creditor_name,
-        SUM(t.amount) / COUNT(ut.user_id) AS amount
-      FROM
-        users_groups ug
-      JOIN
-        users_transactions ut ON ut.user_id = ug.user_id
-      JOIN
-        transactions t ON t.id = ut.transaction_id
-      JOIN
-        users u ON u.id = ut.user_id
-      JOIN
-        users u2 ON u2.id = t.author_id
-      WHERE
-        ug.group_id = ${groupId}
-      GROUP BY
-        ut.user_id, u.id, u2.id, u.name, u2.name, t.id
-    `;
-
-    const response = await db.execute<{
-      transaction_id: string;
-      user_id: string;
-      author_id: string;
-      debtor_name: string;
-      creditor_name: string;
-      amount: string;
-    }>(query);
-
+describe("Trip Groups Controller", () => {
+  it("should return user's trip groups", async () => {
     const userBalance: Record<
       string,
       {
@@ -74,7 +59,7 @@ export abstract class TransactionService {
       }
     > = {};
 
-    response.rows.forEach(
+    data.forEach(
       ({ creditor_name, debtor_name, user_id, author_id, amount }) => {
         const parsedAmount = parseInt(amount, 10);
         userBalance[user_id] = userBalance[user_id] || {
@@ -140,6 +125,37 @@ export abstract class TransactionService {
       };
     });
 
-    return usersBalanceSummary;
-  }
-}
+    expect(usersBalanceSummary).toEqual([
+      {
+        id: "fhsos0cwdht7mf96h7p7ut35",
+        hasToPay: 120000,
+        hasToReceive: 30000,
+        name: "Bruno",
+      },
+      {
+        id: "vob0e8r4v2ap0zgk11g5e9vp",
+        hasToPay: 0,
+        hasToReceive: 120000,
+        name: "Joao",
+      },
+      {
+        id: "ndpp7vo03qmsh0tx8loz56rj",
+        hasToPay: 0,
+        hasToReceive: 30000,
+        name: "Rafael",
+      },
+      {
+        id: "srfe28bj4rvxkytrlil27djp",
+        hasToPay: 30000,
+        hasToReceive: 0,
+        name: "Georg",
+      },
+      {
+        id: "s1xo8mwv89iu5w75qly6vnwf",
+        hasToPay: 30000,
+        hasToReceive: 0,
+        name: "Natalia",
+      },
+    ]);
+  });
+});

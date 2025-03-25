@@ -1,8 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../database";
-import { tripGroups, users, usersTripGroups } from "../database/schema";
-import { CreateTripGroupRequestDTO } from "../dto/trip-groups/create-trip-group-request.dto";
-import { TripGroupNotFoundException } from "../exceptions/trip-group-not-found-exception";
+import { groups, users, usersGroups } from "../database/schema";
+import { CreateTripGroupRequestDTO } from "../dto/groups/create-group-request.dto";
+import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 
 export abstract class TripGroupService {
   static async createTripGroup(
@@ -14,9 +14,9 @@ export abstract class TripGroupService {
     }: CreateTripGroupRequestDTO
   ) {
     return db.transaction(async (transaction) => {
-      const tripGroup = (
+      const group = (
         await transaction
-          .insert(tripGroups)
+          .insert(groups)
           .values({
             name,
             description,
@@ -26,9 +26,9 @@ export abstract class TripGroupService {
 
       const membersIds = [ownerId, ...requestMembersIds];
 
-      await transaction.insert(usersTripGroups).values(
+      await transaction.insert(usersGroups).values(
         membersIds.map((memberId) => ({
-          tripGroupId: tripGroup.id,
+          groupId: group.id,
           userId: memberId,
         }))
       );
@@ -42,7 +42,7 @@ export abstract class TripGroupService {
       });
 
       return {
-        ...tripGroup,
+        ...group,
         members: tripGroupUsers.map((user) => {
           return {
             ...user,
@@ -54,18 +54,18 @@ export abstract class TripGroupService {
   }
 
   static async findTripGroupById(tripGroupId: string) {
-    const tripGroup = await db.query.tripGroups.findFirst({
-      where: eq(tripGroups.id, tripGroupId),
+    const tripGroup = await db.query.groups.findFirst({
+      where: eq(groups.id, tripGroupId),
     });
 
     if (!tripGroup) {
-      throw new TripGroupNotFoundException();
+      throw new GroupNotFoundException();
     }
   }
 
   static async findTripGroupsByUserId(userId: string) {
-    const tripGroups = await db.query.usersTripGroups.findMany({
-      where: eq(usersTripGroups.userId, userId),
+    const tripGroups = await db.query.usersGroups.findMany({
+      where: eq(usersGroups.userId, userId),
       columns: {},
       with: {
         tripGroup: true,
@@ -76,8 +76,8 @@ export abstract class TripGroupService {
   }
 
   static async findTripGroupsUsers(tripGroupId: string) {
-    const response = await db.query.usersTripGroups.findMany({
-      where: eq(usersTripGroups.tripGroupId, tripGroupId),
+    const response = await db.query.usersGroups.findMany({
+      where: eq(usersGroups.groupId, tripGroupId),
       columns: {},
       with: {
         user: {

@@ -1,7 +1,7 @@
 import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { authRoutes } from "./routes/auth.routes";
-import { tripGroupsRoutes } from "./routes/trip-groups.routes";
+import { tripGroupsRoutes } from "./routes/groups.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
 
 export const app = new Elysia()

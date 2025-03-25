@@ -1,18 +1,18 @@
 import { Elysia, t } from "elysia";
-import { createTripGroupRequestDTO } from "../dto/trip-groups/create-trip-group-request.dto";
+import { createGroupRequestDTO } from "../dto/groups/create-group-request.dto";
 import { authGuard } from "../guards/auth-guard";
-import { TripGroupService } from "../services/trip-group-service";
-import { TripGroupNotFoundException } from "../exceptions/trip-group-not-found-exception";
+import { TripGroupService } from "../services/group-service";
+import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 import { TransactionService } from "../services/transaction-service";
 
 export const tripGroupsRoutes = new Elysia({ prefix: "/trip-groups" })
   .use(authGuard)
-  .error("404", TripGroupNotFoundException)
+  .error("404", GroupNotFoundException)
   .post(
     "",
     ({ body, userId }) => TripGroupService.createTripGroup(userId, body),
     {
-      body: createTripGroupRequestDTO,
+      body: createGroupRequestDTO,
     }
   )
   .get("", ({ userId }) => {

@@ -20,7 +20,7 @@ const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-const tripGroups = pgTable("trip_groups", {
+const groups = pgTable("groups", {
   id: varchar("id")
     .$defaultFn(() => createId())
     .primaryKey(),
@@ -30,17 +30,17 @@ const tripGroups = pgTable("trip_groups", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-const usersTripGroups = pgTable(
-  "users_trip_groups",
+const usersGroups = pgTable(
+  "users_groups",
   {
     userId: varchar("user_id")
       .notNull()
       .references(() => users.id),
-    tripGroupId: varchar("trip_group_id")
+    groupId: varchar("group_id")
       .notNull()
-      .references(() => tripGroups.id),
+      .references(() => groups.id),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.tripGroupId] })]
+  (t) => [primaryKey({ columns: [t.userId, t.groupId] })]
 );
 
 const transactions = pgTable("transactions", {
@@ -51,9 +51,9 @@ const transactions = pgTable("transactions", {
   authorId: varchar("author_id")
     .notNull()
     .references(() => users.id),
-  tripGroupId: varchar("trip_group_id")
+  groupId: varchar("trip_group_id")
     .notNull()
-    .references(() => tripGroups.id),
+    .references(() => groups.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -70,4 +70,4 @@ const usersTransactions = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.transactionId] })]
 );
 
-export { users, tripGroups, usersTripGroups, transactions, usersTransactions };
+export { users, groups, usersGroups, transactions, usersTransactions };
