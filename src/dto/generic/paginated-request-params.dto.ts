@@ -5,7 +5,18 @@ const paginatedRequestParamsDTO = t.Object(
     pageSize: t.Optional(
       t.Number({ error: "[pageSize] must be a number", default: 10 })
     ),
-    cursor: t.Number({ error: "[cursor] must be a number", default: 1 }),
+    cursor: t.Optional(
+      t.Union(
+        [
+          t.Number({
+            error: "[cursor] must be a number or null",
+            default: null,
+          }),
+          t.Null(),
+        ],
+        { error: "[cursor] must be a number or null" }
+      )
+    ),
   },
   { error: "Invalid request params" }
 );

@@ -66,7 +66,7 @@ export abstract class TripGroupService {
 
   static async findTripGroupsByUserId(
     userId: number,
-    { cursor = 1, pageSize = 10 }: PaginatedRequestDTO
+    { cursor = 0, pageSize = 10 }: PaginatedRequestDTO
   ) {
     const userGroups = await db
       .selectDistinctOn([groups.id], {
@@ -84,20 +84,16 @@ export abstract class TripGroupService {
       .leftJoin(groups, eq(usersGroups.groupId, groups.id))
       .leftJoin(transactions, eq(transactions.groupId, groups.id))
       .leftJoin(users, eq(users.id, usersGroups.userId))
-
       .orderBy(groups.id)
-      .limit(pageSize)
+      .limit(pageSize + 1)
       .where(
-        and(
-          eq(users.id, userId),
-          cursor ? or(eq(groups.id, cursor), gt(groups.id, cursor)) : undefined
-        )
+        and(eq(users.id, userId), cursor ? gt(groups.id, cursor) : undefined)
       )
       .groupBy(groups.id, users.id);
 
-    const hasMoreItems = userGroups.length >= pageSize + 1;
+    console.log(userGroups.length);
 
-    console.log(userGroups.length, pageSize + 1);
+    const hasMoreItems = userGroups.length > pageSize;
 
     return {
       groups: hasMoreItems

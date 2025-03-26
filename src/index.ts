@@ -14,7 +14,7 @@ export const app = new Elysia()
       };
     }
 
-    set.status = Number(code);
+    set.status = Number(code) || 400;
     return {
       success: false,
       message: "message" in error ? error?.message! : "",
