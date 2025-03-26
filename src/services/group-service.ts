@@ -1,14 +1,13 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { db } from "../database";
 import { groups, transactions, users, usersGroups } from "../database/schema";
+import { PaginatedRequestDTO } from "../dto/generic/paginated-request-params.dto";
 import { CreateTripGroupRequestDTO } from "../dto/groups/create-group-request.dto";
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
-import { PaginatedRequestDTO } from "../dto/generic/paginated-request-params.dto";
-import { withPagination } from "../utils/with-pagination";
 
 export abstract class TripGroupService {
   static async createTripGroup(
-    ownerId: string,
+    ownerId: number,
     {
       name,
       description,
@@ -55,9 +54,9 @@ export abstract class TripGroupService {
     });
   }
 
-  static async findTripGroupById(tripGroupId: string) {
+  static async findTripGroupById(groupId: number) {
     const tripGroup = await db.query.groups.findFirst({
-      where: eq(groups.id, tripGroupId),
+      where: eq(groups.id, groupId),
     });
 
     if (!tripGroup) {
@@ -66,60 +65,51 @@ export abstract class TripGroupService {
   }
 
   static async findTripGroupsByUserId(
-    userId: string,
-    { page = 1, pageSize = 10 }: PaginatedRequestDTO
+    userId: number,
+    { cursor = 1, pageSize = 10 }: PaginatedRequestDTO
   ) {
-    const currentPage = (page - 1) * pageSize;
-
-    const totalItemsSelect = (
-      await db
-        .select({
-          totalPages: sql<number>`cast(COUNT(DISTINCT ${groups.id}) as int)`.as(
-            "totalPages"
+    const userGroups = await db
+      .selectDistinctOn([groups.id], {
+        id: groups.id,
+        name: groups.name,
+        description: groups.description,
+        members: users.id,
+        totalExpenses:
+          sql<number>`cast(COALESCE(SUM(${transactions.amount}), 0) as int)`.as(
+            "totalExpenses"
           ),
-        })
-        .from(usersGroups)
-        .leftJoin(groups, eq(usersGroups.groupId, groups.id))
-        .where(eq(usersGroups.userId, userId))
-    )[0];
+      })
 
-    const totalItems = totalItemsSelect?.totalPages || 0;
-    const totalPages = Math.ceil(totalItems / pageSize);
+      .from(usersGroups)
+      .leftJoin(groups, eq(usersGroups.groupId, groups.id))
+      .leftJoin(transactions, eq(transactions.groupId, groups.id))
+      .leftJoin(users, eq(users.id, usersGroups.userId))
 
-    const userGroups = await withPagination(
-      db
-        .select({
-          id: groups.id,
-          name: groups.name,
-          description: groups.description,
+      .orderBy(groups.id)
+      .limit(pageSize)
+      .where(
+        and(
+          eq(users.id, userId),
+          cursor ? or(eq(groups.id, cursor), gt(groups.id, cursor)) : undefined
+        )
+      )
+      .groupBy(groups.id, users.id);
 
-          totalExpenses:
-            sql<number>`cast(COALESCE(SUM(${transactions.amount}), 0) as int)`.as(
-              "totalExpenses"
-            ),
-        })
-        .from(usersGroups)
-        .leftJoin(groups, eq(usersGroups.groupId, groups.id))
-        .leftJoin(transactions, eq(transactions.groupId, groups.id))
-        .where(eq(usersGroups.userId, userId))
-        .groupBy(groups.id)
-        .$dynamic(),
-      asc(groups.id),
-      currentPage,
-      pageSize
-    );
+    const hasMoreItems = userGroups.length >= pageSize + 1;
+
+    console.log(userGroups.length, pageSize + 1);
 
     return {
-      groups: userGroups,
-      page,
-      totalItems,
-      totalPages,
+      groups: hasMoreItems
+        ? userGroups.slice(0, userGroups.length - 1)
+        : userGroups,
+      nextCursor: hasMoreItems ? userGroups[userGroups.length - 1]?.id : null,
     };
   }
 
-  static async findTripGroupsUsers(tripGroupId: string) {
+  static async findTripGroupsUsers(groupId: number) {
     const response = await db.query.usersGroups.findMany({
-      where: eq(usersGroups.groupId, tripGroupId),
+      where: eq(usersGroups.groupId, groupId),
       columns: {},
       with: {
         user: {

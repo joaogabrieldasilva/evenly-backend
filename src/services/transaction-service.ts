@@ -5,7 +5,7 @@ import { CreateTransactionRequestDTO } from "../dto/transactions/create-transact
 
 export abstract class TransactionService {
   static async createTransaction(
-    userId: string,
+    userId: number,
     { amount, borrowersIds, groupId }: CreateTransactionRequestDTO
   ) {
     return db.transaction(async (t) => {
@@ -31,7 +31,7 @@ export abstract class TransactionService {
     });
   }
 
-  static async getGroupTransactionsBalance(groupId: string) {
+  static async getGroupTransactionsBalance(groupId: number) {
     const query = sql`
       SELECT
         u.id AS user_id,
@@ -56,9 +56,9 @@ export abstract class TransactionService {
     `;
 
     const response = await db.execute<{
-      transaction_id: string;
-      user_id: string;
-      author_id: string;
+      transaction_id: number;
+      user_id: number;
+      author_id: number;
       debtor_name: string;
       creditor_name: string;
       amount: string;

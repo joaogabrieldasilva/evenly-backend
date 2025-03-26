@@ -6,15 +6,15 @@ export const authGuard = (app: Elysia) =>
     .derive(({ headers }) => {
       const bearer = headers["authorization"];
 
-      if (!bearer) return { userId: "" };
+      if (!bearer) return { userId: 0 };
 
       const [, token] = bearer.split(" ");
 
-      if (!token) return { userId: "" };
+      if (!token) return { userId: 0 };
 
       const payload = jwt.verify(token, process.env.JWT_SECRET!);
 
-      const userId = payload.sub as string;
+      const userId = Number(payload.sub) as number;
 
       return { userId };
     })

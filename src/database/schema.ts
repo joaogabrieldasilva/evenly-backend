@@ -10,9 +10,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { relations } from "drizzle-orm";
 
 const users = pgTable("users", {
-  id: varchar("id")
-    .$defaultFn(() => createId())
-    .primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   password: varchar("password").notNull(),
   name: varchar("name").notNull(),
   email: varchar("email").notNull().unique(),
@@ -21,9 +19,7 @@ const users = pgTable("users", {
 });
 
 const groups = pgTable("groups", {
-  id: varchar("id")
-    .$defaultFn(() => createId())
-    .primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: varchar("name").notNull(),
   description: varchar("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -33,10 +29,10 @@ const groups = pgTable("groups", {
 const usersGroups = pgTable(
   "users_groups",
   {
-    userId: varchar("user_id")
+    userId: integer("user_id")
       .notNull()
       .references(() => users.id),
-    groupId: varchar("group_id")
+    groupId: integer("group_id")
       .notNull()
       .references(() => groups.id),
   },
@@ -44,14 +40,12 @@ const usersGroups = pgTable(
 );
 
 const transactions = pgTable("transactions", {
-  id: varchar("id")
-    .$defaultFn(() => createId())
-    .primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   amount: integer("amount").notNull(),
-  authorId: varchar("author_id")
+  authorId: integer("author_id")
     .notNull()
     .references(() => users.id),
-  groupId: varchar("group_id")
+  groupId: integer("group_id")
     .notNull()
     .references(() => groups.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -60,10 +54,10 @@ const transactions = pgTable("transactions", {
 const usersTransactions = pgTable(
   "users_transactions",
   {
-    userId: varchar("user_id")
+    userId: integer("user_id")
       .notNull()
       .references(() => users.id),
-    transactionId: varchar("transaction_id")
+    transactionId: integer("transaction_id")
       .notNull()
       .references(() => transactions.id),
   },

@@ -30,7 +30,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
     ({ params: { groupId } }) => TripGroupService.findTripGroupById(groupId),
     {
       params: t.Object({
-        groupId: t.String(),
+        groupId: t.Number(),
       }),
     }
   )
@@ -39,7 +39,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
     ({ params: { groupId } }) => TripGroupService.findTripGroupsUsers(groupId),
     {
       params: t.Object({
-        groupId: t.String(),
+        groupId: t.Number(),
       }),
     }
   )
@@ -49,7 +49,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
       TransactionService.getGroupTransactionsBalance(groupId),
     {
       params: t.Object({
-        groupId: t.String(),
+        groupId: t.Number(),
       }),
     }
   );
