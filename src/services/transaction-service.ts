@@ -67,7 +67,7 @@ export abstract class TransactionService {
     const userBalance: Record<
       string,
       {
-        id: string;
+        id: number;
         name: string;
         hasToPay: Record<string, number>;
         hasToReceive: Record<string, number>;

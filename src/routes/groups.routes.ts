@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { createGroupRequestDTO } from "../dto/groups/create-group-request.dto";
 import { authGuard } from "../guards/auth-guard";
-import { TripGroupService } from "../services/group-service";
+import { GroupService } from "../services/group-service";
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 import { TransactionService } from "../services/transaction-service";
 import { paginatedRequestParamsDTO } from "../dto/generic/paginated-request-params.dto";
@@ -9,17 +9,13 @@ import { paginatedRequestParamsDTO } from "../dto/generic/paginated-request-para
 export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   .use(authGuard)
   .error("404", GroupNotFoundException)
-  .post(
-    "",
-    ({ body, userId }) => TripGroupService.createTripGroup(userId, body),
-    {
-      body: createGroupRequestDTO,
-    }
-  )
+  .post("", ({ body, userId }) => GroupService.createTripGroup(userId, body), {
+    body: createGroupRequestDTO,
+  })
   .get(
     "",
     ({ userId, query }) => {
-      return TripGroupService.findTripGroupsByUserId(userId, query);
+      return GroupService.findTripGroupsByUserId(userId, query);
     },
     {
       query: paginatedRequestParamsDTO,
@@ -27,7 +23,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   )
   .get(
     ":groupId",
-    ({ params: { groupId } }) => TripGroupService.findTripGroupById(groupId),
+    ({ params: { groupId } }) => GroupService.findTripGroupById(groupId),
     {
       params: t.Object({
         groupId: t.Number(),
@@ -36,7 +32,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   )
   .get(
     ":groupId/users",
-    ({ params: { groupId } }) => TripGroupService.findTripGroupsUsers(groupId),
+    ({ params: { groupId } }) => GroupService.findTripGroupsUsers(groupId),
     {
       params: t.Object({
         groupId: t.Number(),

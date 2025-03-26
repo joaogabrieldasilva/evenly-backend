@@ -5,7 +5,7 @@ import { PaginatedRequestDTO } from "../dto/generic/paginated-request-params.dto
 import { CreateTripGroupRequestDTO } from "../dto/groups/create-group-request.dto";
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 
-export abstract class TripGroupService {
+export abstract class GroupService {
   static async createTripGroup(
     ownerId: number,
     {
@@ -93,13 +93,13 @@ export abstract class TripGroupService {
 
     console.log(userGroups.length);
 
-    const hasMoreItems = userGroups.length > pageSize;
+    const hasMoreItems = userGroups.length >= pageSize;
 
     return {
       groups: hasMoreItems
         ? userGroups.slice(0, userGroups.length - 1)
         : userGroups,
-      nextCursor: hasMoreItems ? userGroups[userGroups.length - 1]?.id : null,
+      nextCursor: hasMoreItems ? userGroups[userGroups.length - 2]?.id : null,
     };
   }
 
