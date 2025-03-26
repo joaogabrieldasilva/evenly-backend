@@ -1,5 +1,7 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import { TransactionService } from "../src/services/transaction-service";
+import { makeDatabaseMock } from "./utils/make-database-mock";
+import { db } from "../src/database";
 
 const data = [
   {
@@ -44,25 +46,21 @@ const data = [
     creditor_name: "Rafael",
     amount: "40000",
   },
-] as const;
+];
 
 describe("Transaction Service", () => {
   it("should return user's groups balance", async () => {
-    const userBalance: Record<
-      string,
-      {
-        id: string;
-        name: string;
-        hasToPay: Record<string, number>;
-        hasToReceive: Record<string, number>;
-      }
-    > = {};
-
     mock.module("../src/database", () => ({
-      db: {
-        execute: () => ({ rows: data }),
-      },
+      db: makeDatabaseMock(),
     }));
+
+    spyOn(db, "execute").mockResolvedValueOnce({
+      rows: data,
+      rowCount: data.length,
+      command: "SELECT",
+      oid: 1,
+      fields: [],
+    });
 
     const result = await TransactionService.getGroupTransactionsBalance(1);
 
