@@ -1,19 +1,17 @@
 import {
-  pgTable,
-  varchar,
-  timestamp,
-  primaryKey,
   integer,
-  pgEnum,
+  pgTable,
+  primaryKey,
+  timestamp,
+  varchar,
 } from "drizzle-orm/pg-core";
-import { createId } from "@paralleldrive/cuid2";
-import { relations } from "drizzle-orm";
 
 const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   password: varchar("password").notNull(),
   name: varchar("name").notNull(),
   email: varchar("email").notNull().unique(),
+  profile_image: varchar("profile_image").default(""),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -64,4 +62,4 @@ const usersTransactions = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.transactionId] })]
 );
 
-export { users, groups, usersGroups, transactions, usersTransactions };
+export { groups, transactions, users, usersGroups, usersTransactions };

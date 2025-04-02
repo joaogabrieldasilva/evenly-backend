@@ -9,13 +9,13 @@ import { paginatedRequestParamsDTO } from "../dto/generic/paginated-request-para
 export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   .use(authGuard)
   .error("404", GroupNotFoundException)
-  .post("", ({ body, userId }) => GroupService.createTripGroup(userId, body), {
+  .post("", ({ body, userId }) => GroupService.createGroup(userId, body), {
     body: createGroupRequestDTO,
   })
   .get(
     "",
     ({ userId, query }) => {
-      return GroupService.findTripGroupsByUserId(userId, query);
+      return GroupService.findGroupsByUserId(userId, query);
     },
     {
       query: paginatedRequestParamsDTO,
@@ -23,7 +23,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   )
   .get(
     ":groupId",
-    ({ params: { groupId } }) => GroupService.findTripGroupById(groupId),
+    ({ params: { groupId } }) => GroupService.findGroupById(groupId),
     {
       params: t.Object({
         groupId: t.Number(),
@@ -32,7 +32,7 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
   )
   .get(
     ":groupId/users",
-    ({ params: { groupId } }) => GroupService.findTripGroupsUsers(groupId),
+    ({ params: { groupId } }) => GroupService.findGroupsUsers(groupId),
     {
       params: t.Object({
         groupId: t.Number(),

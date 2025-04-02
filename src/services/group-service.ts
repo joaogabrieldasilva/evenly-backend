@@ -1,4 +1,14 @@
-import { and, eq, gt, inArray, or, sql } from "drizzle-orm";
+import {
+  aliasedTable,
+  and,
+  eq,
+  getTableColumns,
+  gt,
+  inArray,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "../database";
 import { groups, transactions, users, usersGroups } from "../database/schema";
 import { PaginatedRequestDTO } from "../dto/generic/paginated-request-params.dto";
@@ -6,7 +16,7 @@ import { CreateTripGroupRequestDTO } from "../dto/groups/create-group-request.dt
 import { GroupNotFoundException } from "../exceptions/group-not-found-exception";
 
 export abstract class GroupService {
-  static async createTripGroup(
+  static async createGroup(
     ownerId: number,
     {
       name,
@@ -54,46 +64,73 @@ export abstract class GroupService {
     });
   }
 
-  static async findTripGroupById(groupId: number) {
-    const tripGroup = await db.query.groups.findFirst({
-      where: eq(groups.id, groupId),
-    });
+  static async findGroupById(groupId: number) {
+    const group = (
+      await db
+        .select({
+          id: groups.id,
+          name: groups.name,
+          description: groups.description,
+          members:
+            sql`array_agg(json_build_object('id', ${users.id}, 'name', ${users.name}))`.as(
+              "members"
+            ),
+          totalExpenses:
+            sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100`.as(
+              "totalExpenses"
+            ),
+        })
+        .from(usersGroups)
+        .innerJoin(groups, eq(usersGroups.groupId, groups.id))
+        .leftJoin(transactions, eq(transactions.groupId, groups.id))
+        .innerJoin(users, eq(users.id, usersGroups.userId))
+        .where(eq(groups.id, groupId))
+        .groupBy(groups.id)
+    )[0];
 
-    if (!tripGroup) {
+    if (!group) {
       throw new GroupNotFoundException();
     }
+
+    return group;
   }
 
-  static async findTripGroupsByUserId(
+  static async findGroupsByUserId(
     userId: number,
     { cursor = 0, pageSize = 10 }: PaginatedRequestDTO
   ) {
     const userGroups = await db
-      .selectDistinctOn([groups.id], {
+      .select({
         id: groups.id,
         name: groups.name,
         description: groups.description,
-        members: users.id,
+        members: sql`array((select ${users.profile_image} from ${usersGroups} JOIN ${users} ON ${users.id} = ${usersGroups.userId} where ${usersGroups.groupId} = ${groups.id}))`,
         totalExpenses:
-          sql<number>`cast(COALESCE(SUM(${transactions.amount}), 0) as int)`.as(
+          sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100`.as(
             "totalExpenses"
           ),
       })
-
-      .from(usersGroups)
-      .leftJoin(groups, eq(usersGroups.groupId, groups.id))
+      .from(groups)
       .leftJoin(transactions, eq(transactions.groupId, groups.id))
-      .leftJoin(users, eq(users.id, usersGroups.userId))
       .orderBy(groups.id)
       .limit(pageSize + 1)
       .where(
-        and(eq(users.id, userId), cursor ? gt(groups.id, cursor) : undefined)
+        and(
+          inArray(
+            groups.id,
+            db
+              .select({
+                groupId: usersGroups.groupId,
+              })
+              .from(usersGroups)
+              .where(eq(usersGroups.userId, userId))
+          ),
+          cursor ? gt(groups.id, cursor) : undefined
+        )
       )
-      .groupBy(groups.id, users.id);
+      .groupBy(groups.id);
 
-    console.log(userGroups.length);
-
-    const hasMoreItems = userGroups.length >= pageSize;
+    const hasMoreItems = userGroups.length >= pageSize + 1;
 
     return {
       groups: hasMoreItems
@@ -103,7 +140,7 @@ export abstract class GroupService {
     };
   }
 
-  static async findTripGroupsUsers(groupId: number) {
+  static async findGroupsUsers(groupId: number) {
     const response = await db.query.usersGroups.findMany({
       where: eq(usersGroups.groupId, groupId),
       columns: {},
