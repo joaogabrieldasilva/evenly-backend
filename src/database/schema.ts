@@ -58,8 +58,12 @@ const usersTransactions = pgTable(
     transactionId: integer("transaction_id")
       .notNull()
       .references(() => transactions.id),
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => groups.id),
+    amount: integer("amount").notNull().default(0),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.transactionId] })]
+  (t) => [primaryKey({ columns: [t.userId, t.transactionId, t.groupId] })]
 );
 
 export { groups, transactions, users, usersGroups, usersTransactions };

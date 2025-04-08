@@ -37,7 +37,7 @@ export class AuthService {
   }
 
   async signIn({ email, password }: SignInRequestDTO) {
-    const user = await db.query.users.findFirst({
+    const foundUser = await db.query.users.findFirst({
       where: eq(users.email, email),
       columns: {
         id: true,
@@ -47,11 +47,13 @@ export class AuthService {
       },
     });
 
-    if (!user) {
+    if (!foundUser) {
       throw new InvalidCredentialsException();
     }
 
-    const verify = Bun.password.verifySync(password, user.password, "bcrypt");
+    const { password: userPassword, ...user } = foundUser;
+
+    const verify = Bun.password.verifySync(password, userPassword, "bcrypt");
 
     if (!verify) {
       throw new InvalidCredentialsException();
@@ -79,7 +81,7 @@ export class AuthService {
 
     const tokenData = jwt.decode(token);
 
-    const userId = tokenData?.sub as string;
+    const userId = tokenData?.sub as unknown as number;
 
     if (!userId) return;
 
@@ -88,7 +90,7 @@ export class AuthService {
     return tokens;
   }
 
-  generateTokens(userId: string) {
+  generateTokens(userId: number) {
     const authToken = jwt.sign(
       {
         sub: userId,

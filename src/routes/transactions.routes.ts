@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { createTransactionRequestDTO } from "../dto/transactions/create-transaction-request.dto";
 import { authGuard } from "../guards/auth-guard";
 import { TransactionService } from "../services/transaction-service";
@@ -10,5 +10,15 @@ export const transactionsRoutes = new Elysia({ prefix: "/transactions" })
     ({ body, userId }) => TransactionService.createTransaction(userId, body),
     {
       body: createTransactionRequestDTO,
+    }
+  )
+  .get(
+    ":groupId/history",
+    ({ params, userId }) =>
+      TransactionService.getGroupHistory(userId, params.groupId),
+    {
+      params: t.Object({
+        groupId: t.Number({ error: "[groupId] must be informed" }),
+      }),
     }
   );

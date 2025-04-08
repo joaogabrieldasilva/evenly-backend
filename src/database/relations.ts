@@ -44,6 +44,10 @@ const usersTransactionsRelations = relations(usersTransactions, ({ one }) => ({
     fields: [usersTransactions.userId],
     references: [users.id],
   }),
+  group: one(groups, {
+    fields: [usersTransactions.groupId],
+    references: [groups.id],
+  }),
 }));
 
 export {

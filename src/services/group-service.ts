@@ -71,19 +71,15 @@ export abstract class GroupService {
           id: groups.id,
           name: groups.name,
           description: groups.description,
-          members:
-            sql`array_agg(json_build_object('id', ${users.id}, 'name', ${users.name}))`.as(
-              "members"
-            ),
+          members: sql`array((select ${users.profile_image} from ${usersGroups} JOIN ${users} ON ${users.id} = ${usersGroups.userId} where ${usersGroups.groupId} = ${groups.id}))`,
           totalExpenses:
             sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100`.as(
               "totalExpenses"
             ),
         })
-        .from(usersGroups)
-        .innerJoin(groups, eq(usersGroups.groupId, groups.id))
+        .from(groups)
         .leftJoin(transactions, eq(transactions.groupId, groups.id))
-        .innerJoin(users, eq(users.id, usersGroups.userId))
+        .orderBy(groups.id)
         .where(eq(groups.id, groupId))
         .groupBy(groups.id)
     )[0];
