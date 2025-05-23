@@ -1,59 +1,38 @@
 import { relations } from "drizzle-orm";
-import {
-  transactions,
-  groups,
-  users,
-  usersTransactions,
-  usersGroups,
-} from "./schema";
+import { accounts, creditCards, transactions, users } from "./schema";
 
 const usersRelations = relations(users, ({ many }) => ({
-  usersGroups: many(usersGroups),
-}));
-
-const groupsRelations = relations(groups, ({ many }) => ({
-  usersGroups: many(usersGroups),
   transactions: many(transactions),
 }));
 
-const transactionsRelations = relations(transactions, ({ one, many }) => ({
-  usersTransactions: many(usersTransactions),
-  group: one(groups, {
-    fields: [transactions.groupId],
-    references: [groups.id],
-  }),
+const accountsRelations = relations(accounts, ({ one, many }) => ({
+  transactions: many(transactions),
+  user: one(users),
 }));
 
-const usersToGroupsRelations = relations(usersGroups, ({ one }) => ({
-  group: one(groups, {
-    fields: [usersGroups.groupId],
-    references: [groups.id],
-  }),
-  user: one(users, {
-    fields: [usersGroups.userId],
-    references: [users.id],
-  }),
+const creditCardsRelations = relations(creditCards, ({ one, many }) => ({
+  transactions: many(transactions),
+  user: one(users),
 }));
 
-const usersTransactionsRelations = relations(usersTransactions, ({ one }) => ({
-  transaction: one(transactions, {
-    fields: [usersTransactions.transactionId],
-    references: [transactions.id],
-  }),
+const transactionsRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
-    fields: [usersTransactions.userId],
+    fields: [transactions.userId],
     references: [users.id],
   }),
-  group: one(groups, {
-    fields: [usersTransactions.groupId],
-    references: [groups.id],
+  account: one(accounts, {
+    fields: [transactions.accountId],
+    references: [accounts.id],
+  }),
+  creditCard: one(creditCards, {
+    fields: [transactions.creditCardId],
+    references: [creditCards.id],
   }),
 }));
 
 export {
   usersRelations,
-  groupsRelations,
-  usersToGroupsRelations,
-  usersTransactionsRelations,
+  accountsRelations,
+  creditCardsRelations,
   transactionsRelations,
 };

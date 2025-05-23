@@ -1,8 +1,9 @@
 import { swagger } from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import { authRoutes } from "./routes/auth.routes";
-import { tripGroupsRoutes } from "./routes/groups.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
+import { accountsRoutes } from "./routes/accounts.routes";
+import { creditCardsRoutes } from "./routes/credit-cards.routes";
 
 export const app = new Elysia()
   .onError(({ code, error, set }) => {
@@ -21,8 +22,9 @@ export const app = new Elysia()
     };
   })
   .use(authRoutes)
-  .use(tripGroupsRoutes)
   .use(transactionsRoutes)
+  .use(accountsRoutes)
+  .use(creditCardsRoutes)
   .use(swagger())
   .listen(3000);
 

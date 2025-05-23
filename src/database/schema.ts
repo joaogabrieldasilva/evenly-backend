@@ -1,69 +1,61 @@
 import {
   integer,
+  pgEnum,
   pgTable,
   primaryKey,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import { TransactionType } from "../enums/transaction-types";
 
 const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   password: varchar("password").notNull(),
   name: varchar("name").notNull(),
   email: varchar("email").notNull().unique(),
-  profile_image: varchar("profile_image").default(""),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-const groups = pgTable("groups", {
+const accounts = pgTable("accounts", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: varchar("name").notNull(),
-  description: varchar("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  currency: varchar("currency", { length: 3 }),
+  balance: integer("balance").notNull().default(0),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
 });
 
-const usersGroups = pgTable(
-  "users_groups",
-  {
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id),
-    groupId: integer("group_id")
-      .notNull()
-      .references(() => groups.id),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.groupId] })]
-);
+const creditCards = pgTable("creditCards", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  name: varchar("name").notNull(),
+  currency: varchar("currency", { length: 3 }),
+  creditLimit: integer("credit_limit").notNull().default(0),
+  invoice: integer("invoice").notNull().default(0),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+});
+
+const transactionTypesEnum = pgEnum("transactionTypes", [
+  TransactionType.CREDIT_CARD,
+  TransactionType.ACCOUNT,
+]);
 
 const transactions = pgTable("transactions", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   amount: integer("amount").notNull(),
-  authorId: integer("author_id")
+  category: varchar("category").notNull().default("General"),
+  description: varchar("description", { length: 500 }),
+  userId: integer("user_id")
     .notNull()
     .references(() => users.id),
-  groupId: integer("group_id")
-    .notNull()
-    .references(() => groups.id),
+  accountId: integer("account_id").references(() => accounts.id),
+  creditCardId: integer("credit_card_id").references(() => creditCards.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updateAt: timestamp("updated_at"),
+  type: transactionTypesEnum("type").notNull(),
 });
 
-const usersTransactions = pgTable(
-  "users_transactions",
-  {
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id),
-    transactionId: integer("transaction_id")
-      .notNull()
-      .references(() => transactions.id),
-    groupId: integer("group_id")
-      .notNull()
-      .references(() => groups.id),
-    amount: integer("amount").notNull().default(0),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.transactionId, t.groupId] })]
-);
-
-export { groups, transactions, users, usersGroups, usersTransactions };
+export { accounts, transactions, users, creditCards, transactionTypesEnum };

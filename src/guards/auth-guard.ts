@@ -4,19 +4,23 @@ import jwt from "jsonwebtoken";
 export const authGuard = (app: Elysia) =>
   app
     .derive(({ headers }) => {
-      const bearer = headers["authorization"];
+      try {
+        const bearer = headers["authorization"];
 
-      if (!bearer) return { userId: 0 };
+        if (!bearer) return { userId: 0 };
 
-      const [, token] = bearer.split(" ");
+        const [, token] = bearer.split(" ");
 
-      if (!token) return { userId: 0 };
+        if (!token) return { userId: 0 };
 
-      const payload = jwt.verify(token, process.env.JWT_SECRET!);
+        const payload = jwt.verify(token, process.env.JWT_SECRET!);
 
-      const userId = Number(payload.sub) as number;
+        const userId = Number(payload.sub) as number;
 
-      return { userId };
+        return { userId };
+      } catch (error) {
+        return { userId: 0 };
+      }
     })
     .guard({
       beforeHandle({ set, userId }) {

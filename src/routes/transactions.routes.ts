@@ -11,14 +11,4 @@ export const transactionsRoutes = new Elysia({ prefix: "/transactions" })
     {
       body: createTransactionRequestDTO,
     }
-  )
-  .get(
-    ":groupId/history",
-    ({ params, userId }) =>
-      TransactionService.getGroupHistory(userId, params.groupId),
-    {
-      params: t.Object({
-        groupId: t.Number({ error: "[groupId] must be informed" }),
-      }),
-    }
   );
