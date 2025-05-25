@@ -7,6 +7,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { TransactionType } from "../enums/transaction-types";
+import { TransactionEntryType } from "../enums/transaction-entry-types";
 
 const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
@@ -43,6 +44,11 @@ const transactionTypesEnum = pgEnum("transactionTypes", [
   TransactionType.ACCOUNT,
 ]);
 
+const transactionEntryTypeEnum = pgEnum("transactionEntryTypes", [
+  TransactionEntryType.DEPOSIT,
+  TransactionEntryType.EXPENSE,
+]);
+
 const transactions = pgTable("transactions", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   amount: integer("amount").notNull(),
@@ -56,6 +62,14 @@ const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updateAt: timestamp("updated_at"),
   type: transactionTypesEnum("type").notNull(),
+  entryType: transactionEntryTypeEnum("entry_type"),
 });
 
-export { accounts, transactions, users, creditCards, transactionTypesEnum };
+export {
+  accounts,
+  transactions,
+  users,
+  creditCards,
+  transactionTypesEnum,
+  transactionEntryTypeEnum,
+};

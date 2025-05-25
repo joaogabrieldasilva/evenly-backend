@@ -4,6 +4,7 @@ import { authRoutes } from "./routes/auth.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { creditCardsRoutes } from "./routes/credit-cards.routes";
+import { aiRoutes } from "./routes/ai.routes";
 
 export const app = new Elysia()
   .onError(({ code, error, set }) => {
@@ -25,6 +26,7 @@ export const app = new Elysia()
   .use(transactionsRoutes)
   .use(accountsRoutes)
   .use(creditCardsRoutes)
+  .use(aiRoutes)
   .use(swagger())
   .listen(3000);
 

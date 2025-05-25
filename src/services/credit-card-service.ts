@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../database";
 import { accounts, creditCards } from "../database/schema";
 import { CreateCreditCardRequestDTO } from "../dto/credit-cards/create-credit-card-request.dto";
@@ -28,7 +28,14 @@ export abstract class CreditCardService {
 
   static async getUserCreditCards(userId: number) {
     const response = await db
-      .select()
+      .select({
+        id: creditCards.id,
+        name: creditCards.name,
+        currency: creditCards.currency,
+        userId: creditCards.userId,
+        invoice: sql<number>`${creditCards.invoice} / 100`,
+        creditLimit: sql<number>`${creditCards.creditLimit} / 100`,
+      })
       .from(creditCards)
       .where(eq(creditCards.userId, userId))
       .orderBy(desc(creditCards.id));
