@@ -21,9 +21,9 @@ export const transactionsRoutes = new Elysia({ prefix: "/transactions" })
       query: getTransactionsRequestDTO,
     }
   )
-  .get("/accounts/weekly-balance", ({ userId }) =>
-    TransactionService.getAccountWeekExpensesAndDepositsBalance(userId)
+  .get("/accounts/monthly-balance", ({ userId }) =>
+    TransactionService.getAccountMonthlyExpensesAndDepositsBalance(userId)
   )
-  .get("/credit-cards/weekly-entries", ({ userId }) =>
-    TransactionService.getCreditCardWeekEntries(userId)
+  .get("/credit-cards/monthly-entries", ({ userId }) =>
+    TransactionService.getCreditCardMonthlyEntries(userId)
   );

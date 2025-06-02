@@ -9,6 +9,8 @@ const createAccountRequestDTO = t.Object(
       error: "[currency] cannot be null",
     }),
     balance: t.Number({ error: "[balance] cannot be null" }),
+    bank: t.String({ error: "[bank] cannot be null" }),
+    color: t.Optional(t.String()),
   },
   { error: "Invalid request body" }
 );

@@ -1,47 +1,92 @@
-import fs from "fs";
+import {
+  ChatPromptTemplate,
+  MessagesPlaceholder,
+} from "@langchain/core/prompts";
+import { ChatOllama } from "@langchain/ollama";
+import { AgentExecutor, createToolCallingAgent } from "langchain/agents";
+import { DynamicStructuredTool } from "langchain/tools";
+import { z } from "zod";
+import { TransactionType } from "../enums/transaction-types";
+import { TransactionService } from "../services/transaction-service";
+import { TransactionEntryType } from "../enums/transaction-entry-types";
 
-export async function aiAgent(prompt: string) {
-  const guidelines = fs.readFileSync("src/ai/guidelines.md", "utf-8");
+const searchTransactionsTool = new DynamicStructuredTool({
+  name: "search_expenses",
+  description: "use this to when user asks about their expenses",
+  schema: z.object({
+    userId: z.string(),
+  }),
+  func: async ({ userId }) => {
+    const transactions = await TransactionService.getAllTransactions(
+      Number(userId)
+    );
 
-  const response = await fetch(process.env.AI_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.AI_MODEL,
-      stream: false,
-      prompt: `
-        ${guidelines}
+    const totalPorCategoria: Record<string, number> = {};
 
-        com base nessas diretrizes, responda a questão abaixo:
+    transactions.forEach(({ category, amount }) => {
+      if (!totalPorCategoria[category]) {
+        totalPorCategoria[category] = 0;
+      }
+      totalPorCategoria[category] += amount;
+    });
 
-        ${prompt}
-     `,
-    }),
+    const resumo = {
+      total_transacoes: transactions.length,
+      total_por_categoria: totalPorCategoria,
+    };
+
+    console.log({
+      resumo,
+      transactions,
+    });
+
+    return JSON.stringify({
+      resumo,
+      transactions,
+    });
+  },
+});
+
+const model = new ChatOllama({
+  model: process.env.AI_MODEL,
+  baseUrl: process.env.AI_ENDPOINT,
+  temperature: 0,
+});
+
+const prompt = ChatPromptTemplate.fromMessages([
+  [
+    "system",
+    "Você é um assistente útil chamado Ollie que pode consultar transações",
+  ],
+  new MessagesPlaceholder("chat_history"),
+  ["human", "{input}"],
+  new MessagesPlaceholder("agent_scratchpad"),
+]);
+
+const agent = createToolCallingAgent({
+  llm: model,
+  tools: [searchTransactionsTool],
+  prompt,
+});
+
+const executor = new AgentExecutor({
+  agent,
+  tools: [searchTransactionsTool],
+});
+
+export async function aiAgent(userId: number, prompt: string) {
+  console.log(userId);
+  const response = await executor.invoke({
+    input: `
+    context: 
+      userId: ${userId}
+
+    ${prompt}
+    `,
+    userId: String(userId),
+    agent_scratchpad: "",
+    chat_history: [],
   });
 
-  return (await response.json())?.response;
-
-  //   const reader = response.body.getReader();
-  //   const decoder = new TextDecoder("utf-8");
-  //   let text = "";
-
-  //   while (true) {
-  //     const { value, done } = await reader.read();
-  //     if (done) break;
-  //     const chunk = decoder.decode(value, { stream: true });
-
-  //     const lines = chunk.split("\n").filter((line) => line.trim() !== "");
-  //     for (const line of lines) {
-  //       const json = JSON.parse(line);
-  //       if (json.response) {
-  //         text += json.response;
-  //       }
-  //     }
-  //   }
-
-  //   console.log("Final response:", text);
-
-  //   return text;
+  return response.output;
 }

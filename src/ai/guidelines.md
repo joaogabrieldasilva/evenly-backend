@@ -81,7 +81,7 @@ Se a pergunta não for sobre finanças pessoais, responda:
 
 ---
 
-# INSTRUÇÃO: Responda apenas com SQL puro.
+# SOBRE RESPOSTAS
 
 - NÃO use ```sql nem qualquer bloco de código
 - NÃO adicione comentários

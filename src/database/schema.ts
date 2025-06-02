@@ -23,6 +23,8 @@ const accounts = pgTable("accounts", {
   name: varchar("name").notNull(),
   currency: varchar("currency", { length: 3 }),
   balance: integer("balance").notNull().default(0),
+  bank: varchar("bank").notNull().default(""),
+  color: varchar("color").notNull().default("#cccccc"),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
@@ -34,6 +36,8 @@ const creditCards = pgTable("creditCards", {
   currency: varchar("currency", { length: 3 }),
   creditLimit: integer("credit_limit").notNull().default(0),
   invoice: integer("invoice").notNull().default(0),
+  bank: varchar("bank").notNull().default(""),
+  color: varchar("color").notNull().default("#cccccc"),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),

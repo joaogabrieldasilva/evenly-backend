@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, sql, sum } from "drizzle-orm";
 import { db } from "../database";
 import { transactions } from "../database/schema";
-import { subDays } from "date-fns";
+import { startOfMonth, subDays } from "date-fns";
 import { CreateTransactionRequestDTO } from "../dto/transactions/create-transaction-request.dto";
 import { TransactionType } from "../enums/transaction-types";
 import { TransactionEntryType } from "../enums/transaction-entry-types";
@@ -61,7 +61,27 @@ export abstract class TransactionService {
     return accountsTransactions;
   }
 
-  static async getAccountWeekExpensesAndDepositsBalance(userId: number) {
+  static async getAllTransactions(userId: number) {
+    const accountsTransactions = await db
+      .select({
+        id: transactions.id,
+        amount: sql<number>`(${transactions.amount}) / 100`,
+        category: transactions.category,
+        description: transactions.description,
+        accountId: transactions.accountId,
+        creditCardId: transactions.creditCardId,
+        createdAt: transactions.createdAt,
+        type: transactions.type,
+        entryType: transactions.entryType,
+      })
+      .from(transactions)
+      .where(and(eq(transactions.userId, userId)))
+      .orderBy(desc(transactions.id));
+
+    return accountsTransactions;
+  }
+
+  static async getAccountMonthlyExpensesAndDepositsBalance(userId: number) {
     const accountsTransactions = await db
       .select({
         amount: sum(transactions.amount),
@@ -72,7 +92,7 @@ export abstract class TransactionService {
         and(
           eq(transactions.userId, userId),
           eq(transactions.type, TransactionType.ACCOUNT),
-          gt(transactions.createdAt, subDays(new Date(), 7))
+          gt(transactions.createdAt, startOfMonth(new Date()))
         )
       )
       .orderBy(transactions.entryType)
@@ -92,7 +112,7 @@ export abstract class TransactionService {
     };
   }
 
-  static async getCreditCardWeekEntries(userId: number) {
+  static async getCreditCardMonthlyEntries(userId: number) {
     const creditCardTransactions = await db
       .select({
         amount: sum(transactions.amount),
@@ -102,7 +122,7 @@ export abstract class TransactionService {
         and(
           eq(transactions.userId, userId),
           eq(transactions.type, TransactionType.CREDIT_CARD),
-          gt(transactions.createdAt, subDays(new Date(), 7))
+          gt(transactions.createdAt, startOfMonth(new Date()))
         )
       )
       .groupBy(transactions.entryType);

@@ -7,9 +7,9 @@ import { aiAgent } from "../ai/ai-agent";
 
 export const aiRoutes = new Elysia({ prefix: "/ai" }).use(authGuard).post(
   "",
-  async ({ body }) => {
+  async ({ body, userId }) => {
     try {
-      const response = await aiAgent(body.prompt);
+      const response = await aiAgent(userId, body.prompt);
 
       return {
         data: response,

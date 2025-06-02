@@ -10,6 +10,8 @@ const createCreditCardRequestDTO = t.Object(
     }),
     invoice: t.Number({ error: "[invoice] cannot be null" }),
     creditLimit: t.Number({ error: "[creditLimit] cannot be null" }),
+    bank: t.String({ error: "[bank] cannot be null" }),
+    color: t.Optional(t.String()),
   },
   { error: "Invalid request body" }
 );
