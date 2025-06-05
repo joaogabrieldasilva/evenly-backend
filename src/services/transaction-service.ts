@@ -1,4 +1,4 @@
-import { aliasedTable, eq, gt, sql } from "drizzle-orm";
+import { aliasedTable, and, eq, gt, sql } from "drizzle-orm";
 import { db } from "../database";
 import {
   groups,
@@ -8,182 +8,298 @@ import {
   usersTransactions,
 } from "../database/schema";
 import { CreateTransactionRequestDTO } from "../dto/transactions/create-transaction-request.dto";
-import { alias } from "drizzle-orm/pg-core";
+import { GroupService } from "./group-service";
+import { UpdateTransactionRequestDTO } from "../dto/transactions/update-transaction-request.dto";
 
 export abstract class TransactionService {
   static async createTransaction(
-    userId: number,
-    { amount, splittersIds, groupId }: CreateTransactionRequestDTO
+    groupId: number,
+    {
+      amount,
+      splittedWithIds,
+      category,
+      description,
+      createdAt,
+      payerId,
+    }: CreateTransactionRequestDTO
   ) {
-    return db.transaction(async (t) => {
+    return db.transaction(async (trx) => {
+      const amountInCents = Math.round(amount * 100);
+
       const transaction = (
-        await t
+        await trx
           .insert(transactions)
           .values({
-            amount: amount * 100,
-            payerId: userId,
+            amount: amountInCents,
+            description,
+            payerId,
             groupId,
+            category,
+            createdAt: createdAt ? new Date(createdAt) : undefined,
           })
           .returning()
       )[0];
 
-      await t.insert(usersTransactions).values(
-        splittersIds.map((userId) => ({
-          transactionId: transaction?.id,
-          userId,
-          groupId,
-          amount: (amount / splittersIds.length) * 100,
-        }))
+      const splittedWith = [payerId, ...splittedWithIds];
+      const numSplitters = splittedWith.length;
+      const splitAmountBase = Math.floor(amountInCents / numSplitters);
+      const remainder = amountInCents - splitAmountBase * numSplitters;
+
+      await trx.insert(usersTransactions).values(
+        splittedWith.map((userId, index) => {
+          const adjustedAmount =
+            index < remainder ? splitAmountBase + 1 : splitAmountBase;
+
+          return {
+            userId,
+            transactionId: transaction.id,
+            amount: adjustedAmount,
+            groupId,
+          };
+        })
       );
 
       return transaction;
     });
   }
 
-  static async getGroupTransactionsBalance(groupId: number) {
-    const payers = alias(users, "payers");
+  static async updateTransaction(
+    transactionId: number,
+    userId: number,
+    {
+      amount,
+      splittedWithIds,
+      category,
+      description,
+      createdAt,
+      payerId,
+    }: UpdateTransactionRequestDTO
+  ) {
+    return db.transaction(async (trx) => {
+      // Verify transaction exists and user has permission to edit it
+      const transaction = (
+        await trx
+          .select()
+          .from(transactions)
+          .where(eq(transactions.id, transactionId))
+          .limit(1)
+      )[0];
 
-    const query = await db
-      .select({
-        debtorId: users.id,
-        debtorName: users.name,
-        debtorProfileImage: users.profile_image,
-        creditorId: payers.id,
-        creditorName: payers.name,
-        creditorProfileImage: payers.profile_image,
-        transactionId: transactions.id,
-        amount: usersTransactions.amount,
-      })
-      .from(groups)
-      .innerJoin(usersTransactions, eq(usersTransactions.groupId, groups.id))
-      .innerJoin(users, eq(users.id, usersTransactions.userId))
-      .innerJoin(
-        transactions,
-        eq(transactions.id, usersTransactions.transactionId)
-      )
-      .innerJoin(payers, eq(payers.id, transactions.payerId))
-      .where(eq(groups.id, groupId))
-      .groupBy(
-        users.name,
-        usersTransactions.transactionId,
-        usersTransactions.userId,
-        usersTransactions.groupId,
-        usersTransactions.groupId,
-        payers.name,
-        transactions.id,
-        users.id,
-        payers.id
+      if (!transaction) {
+        throw new Error("Transaction not found");
+      }
+
+      const userCanEdit =
+        transaction.payerId === userId ||
+        (await trx
+          .select()
+          .from(usersGroups)
+          .where(
+            and(
+              eq(usersGroups.userId, userId),
+              eq(usersGroups.groupId, transaction.groupId)
+            )
+          )
+          .limit(1));
+
+      if (!userCanEdit) {
+        throw new Error("Unauthorized to edit this transaction");
+      }
+
+      const amountInCents = Math.round(amount * 100);
+
+      await trx
+        .delete(usersTransactions)
+        .where(eq(usersTransactions.transactionId, transactionId));
+
+      await trx
+        .update(transactions)
+        .set({
+          amount: amountInCents,
+          description,
+          payerId,
+          category,
+          createdAt: createdAt ? new Date(createdAt) : transaction.createdAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(transactions.id, transactionId));
+
+      const splittedWith = [payerId, ...splittedWithIds];
+
+      const numSplitters = splittedWith.length;
+      const splitAmountBase = Math.floor(amountInCents / numSplitters);
+      const remainder = amountInCents - splitAmountBase * numSplitters;
+
+      await trx.insert(usersTransactions).values(
+        splittedWith.map((userId, index) => {
+          const adjustedAmount =
+            index < remainder ? splitAmountBase + 1 : splitAmountBase;
+
+          return {
+            userId,
+            transactionId: transaction.id,
+            amount: adjustedAmount,
+            groupId: transaction.groupId,
+          };
+        })
       );
 
-    const userBalance: Record<
-      string,
-      {
-        id: number;
-        name: string;
-        profileImage: string;
-        hasToPay: Record<string, number>;
-        hasToReceive: Record<string, number>;
-      }
-    > = {};
-
-    query.forEach(
-      ({
-        creditorName,
-        debtorName,
-        debtorId,
-        creditorId,
-        amount,
-        debtorProfileImage,
-        creditorProfileImage,
-      }) => {
-        userBalance[debtorId] = userBalance[debtorId] || {
-          id: debtorId,
-          hasToPay: {},
-          hasToReceive: {},
-          name: debtorName,
-          profileImage: debtorProfileImage,
-        };
-
-        userBalance[creditorId] = userBalance[creditorId] || {
-          id: creditorId,
-          hasToPay: {},
-          hasToReceive: {},
-          name: creditorName,
-          profileImage: creditorProfileImage,
-        };
-
-        userBalance[debtorId].hasToPay[creditorId] =
-          (userBalance[debtorId].hasToPay[creditorId] || 0) + amount;
-        userBalance[creditorId].hasToReceive[debtorId] =
-          (userBalance[creditorId].hasToReceive[debtorId] || 0) + amount;
-      }
-    );
-
-    console.log(userBalance);
-
-    // get every key (user_id) from the res object
-    Object.keys(userBalance).forEach((debtor, index) => {
-      // get the keys (payer_ud) from the owes object which is inside the current debtor
-      Object.keys(userBalance[debtor].hasToPay).forEach((creditor) => {
-        // find what each debtor owes to a specific creditor
-        const debtorOwes = userBalance[debtor].hasToPay[creditor];
-        // find what each creditor owes back to a specific debitor
-        const creditorOwesBack = userBalance[creditor].hasToPay[debtor] || 0;
-        // calculate the balance between the two users
-        const netBalance = debtorOwes - creditorOwesBack;
-
-        if (netBalance !== 0) {
-          userBalance[debtor].hasToPay[creditor] = Math.max(netBalance, 0);
-          userBalance[creditor].hasToReceive[debtor] = Math.max(netBalance, 0);
-
-          userBalance[creditor].hasToPay[debtor] = Math.max(
-            creditorOwesBack - debtorOwes,
-            0
-          );
-          userBalance[debtor].hasToReceive[creditor] = Math.max(
-            creditorOwesBack - debtorOwes,
-            0
-          );
-        }
-      });
-    });
-
-    const usersBalanceSummary = Object.keys(userBalance).map((person) => {
-      const totalOwed = Object.values(userBalance[person].hasToPay).reduce(
-        (a, b) => a + b,
-        0
-      );
-      const totalToReceive = Object.values(
-        userBalance[person].hasToReceive
-      ).reduce((a, b) => a + b, 0);
       return {
-        id: userBalance[person].id,
-        name: userBalance[person].name,
-        hasToPay: totalOwed / 100,
-        profileImage: userBalance[person].profileImage,
-        hasToReceive: totalToReceive / 100,
+        id: transaction.id,
       };
     });
-
-    return usersBalanceSummary;
   }
 
-  static async getGroupHistory(userId: number, groupId: number) {
-    const groupTransactions = await db
-      .select({
-        payerName: users.name,
-        PayerProfileImage: users.profile_image,
-        amount: sql`${transactions.amount} / 100`,
-        transactionId: transactions.id,
-        splitters: sql`
-        array((select ${users.profile_image} from ${users} INNER JOIN ${usersTransactions} ON ${usersTransactions.userId} = ${users.id} group by ${users.id}))
-        `,
-      })
-      .from(groups)
-      .innerJoin(transactions, eq(transactions.groupId, groups.id))
-      .innerJoin(users, eq(users.id, transactions.payerId))
-      .where(eq(groups.id, groupId));
+  static async getGroupTransactions(userId: number, groupId: number) {
+    const userHasAccess = await db
+      .select()
+      .from(usersGroups)
+      .where(
+        and(eq(usersGroups.userId, userId), eq(usersGroups.groupId, groupId))
+      )
+      .limit(1);
 
-    return groupTransactions;
+    if (!userHasAccess.length) {
+      throw new Error("Unauthorized access to group transactions");
+    }
+
+    const result = await db.execute(sql`
+      WITH transaction_data AS (
+      SELECT
+        t.id,
+        ROUND(t.amount / 100.0, 2) AS amount,
+        t.description,
+        t.created_at AS "createdAt",
+        t.updated_at AS "updatedAt",
+        t.category,
+        u.name AS "payerName",
+        t.payer_id AS "payerId",
+        u.profile_image AS "payerProfileImage"
+      FROM transactions t
+      INNER JOIN users u ON u.id = t.payer_id
+      WHERE t.group_id = ${groupId}
+      ),
+      splitters AS (
+      SELECT
+        ut.transaction_id,
+        json_agg(
+        json_build_object(
+          'id', u.id,
+          'name', u.name,
+          'profilePictureUrl', COALESCE(u.profile_image, '')
+        )
+        ) AS split_with
+      FROM users_transactions ut
+      INNER JOIN users u ON u.id = ut.user_id
+      WHERE ut.group_id = ${groupId} AND ut.user_id != ${userId}
+      GROUP BY ut.transaction_id
+      )
+      SELECT
+      json_build_object(
+        'id', td.id,
+        'amount', td.amount,
+        'description', COALESCE(td.description, ''),
+        'createdAt', td.\"createdAt\",
+        'paidBy', json_build_object(
+        'id', td."payerId",
+        'name', td."payerName",
+        'profilePictureUrl', COALESCE(td."payerProfileImage", '')
+        ),
+        'splittedWith', COALESCE(s.split_with, '[]'::json),
+        'category', COALESCE(td.category, 'Other')
+      ) AS transaction
+      FROM transaction_data td
+      LEFT JOIN splitters s ON s.transaction_id = td.id
+    `);
+
+    return result.rows.map((row) => row.transaction);
+  }
+
+  static async getTransactionById(transactionId: number, userId: number) {
+    const transaction = await db
+      .select({
+        id: transactions.id,
+        amount: transactions.amount,
+        groupId: transactions.groupId,
+      })
+      .from(transactions)
+      .where(eq(transactions.id, transactionId))
+      .limit(1);
+
+    if (!transaction.length) {
+      throw new Error("Transaction not found");
+    }
+
+    const groupId = transaction[0].groupId;
+
+    // Check if user is part of the group
+    const userHasAccess = await db
+      .select()
+      .from(usersGroups)
+      .where(
+        and(eq(usersGroups.userId, userId), eq(usersGroups.groupId, groupId))
+      )
+      .limit(1);
+
+    if (!userHasAccess.length) {
+      throw new Error("Unauthorized access to transaction");
+    }
+
+    // Get detailed transaction data
+    const result = await db.execute(sql`
+      WITH transaction_data AS (
+        SELECT
+          t.id,
+          t.amount / 100 AS amount,
+          t.description,
+          t.created_at AS "createdAt",
+          t.updated_at AS "updatedAt",
+          t.category,
+          t.group_id AS "groupId",
+          t.payer_id AS "payerId",
+          u.name AS "payerName",
+          u.profile_image AS "payerProfileImage"
+        FROM transactions t
+        INNER JOIN users u ON u.id = t.payer_id
+        WHERE t.id = ${transactionId}
+      ),
+      splittedWithMembers AS (
+        SELECT
+          json_agg(
+            json_build_object(
+              'id', u.id,
+              'name', u.name,
+              'profilePictureUrl', COALESCE(u.profile_image, '')
+            )
+          ) AS splitted_with_members
+        FROM users_transactions ut
+        INNER JOIN users u ON u.id = ut.user_id
+        WHERE ut.transaction_id = ${transactionId}
+        GROUP BY ut.transaction_id
+      )
+      SELECT
+        json_build_object(
+          'id', td.id,
+          'amount', td.amount,
+          'description', COALESCE(td.description, ''),
+          'createdAt', td."createdAt",
+          'updatedAt', td."updatedAt",
+          'groupId', td."groupId",
+          'paidBy', json_build_object(
+            'id', td."payerId",
+            'name', td."payerName",
+            'profilePictureUrl', COALESCE(td."payerProfileImage", '')
+          ),
+          'splittedWithMembers', COALESCE((SELECT splitted_with_members FROM splittedWithMembers), '[]'::json),
+          'category', COALESCE(td.category, 'Other')
+        ) AS transaction
+      FROM transaction_data td
+    `);
+
+    if (!result.rows.length) {
+      throw new Error("Transaction details not found");
+    }
+
+    return result.rows[0].transaction;
   }
 }

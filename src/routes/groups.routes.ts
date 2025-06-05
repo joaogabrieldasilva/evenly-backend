@@ -31,8 +31,8 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
     }
   )
   .get(
-    ":groupId/users",
-    ({ params: { groupId } }) => GroupService.findGroupsUsers(groupId),
+    ":groupId/members-count",
+    ({ params: { groupId } }) => GroupService.getGroupMembersCount(groupId),
     {
       params: t.Object({
         groupId: t.Number(),
@@ -40,9 +40,54 @@ export const tripGroupsRoutes = new Elysia({ prefix: "/groups" })
     }
   )
   .get(
-    ":groupId/transactions-balance",
+    ":groupId/members-count",
+    ({ params: { groupId } }) => GroupService.getGroupMembersCount(groupId),
+    {
+      params: t.Object({
+        groupId: t.Number(),
+      }),
+    }
+  )
+  .get(
+    ":groupId/category-count",
+    ({ params: { groupId } }) => GroupService.getGroupCategoryCount(groupId),
+    {
+      params: t.Object({
+        groupId: t.Number(),
+      }),
+    }
+  )
+  .get(
+    ":groupId/category-count",
+    ({ params: { groupId } }) => GroupService.getGroupCategoryCount(groupId),
+    {
+      params: t.Object({
+        groupId: t.Number(),
+      }),
+    }
+  )
+  .get(
+    ":groupId/total-spent",
+    ({ params: { groupId } }) => GroupService.getGroupTotalSpent(groupId),
+    {
+      params: t.Object({
+        groupId: t.Number(),
+      }),
+    }
+  )
+  .get(
+    ":groupId/users/balance",
     ({ params: { groupId } }) =>
-      TransactionService.getGroupTransactionsBalance(groupId),
+      GroupService.getGroupMembersWithBalance(groupId),
+    {
+      params: t.Object({
+        groupId: t.Number(),
+      }),
+    }
+  )
+  .get(
+    ":groupId/users",
+    ({ params: { groupId } }) => GroupService.getGroupMembers(groupId),
     {
       params: t.Object({
         groupId: t.Number(),

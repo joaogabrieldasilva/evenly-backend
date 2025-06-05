@@ -20,6 +20,9 @@ const groups = pgTable("groups", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: varchar("name").notNull(),
   description: varchar("description"),
+  ownerId: integer("owner_id")
+    .notNull()
+    .references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -39,7 +42,8 @@ const usersGroups = pgTable(
 
 const transactions = pgTable("transactions", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  amount: integer("amount").notNull(),
+  amount: integer("amount"),
+  description: varchar("description"),
   payerId: integer("payer_id")
     .notNull()
     .references(() => users.id),
@@ -48,6 +52,7 @@ const transactions = pgTable("transactions", {
     .notNull()
     .references(() => groups.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
 });
 
 const usersTransactions = pgTable(

@@ -6,13 +6,14 @@ import { UserAlreadyExistsException } from "../exceptions/user-already-exists-ex
 import { UserNotFoundException } from "../exceptions/user-not-found-exception";
 import { InvalidCredentialsException } from "../exceptions/invalid-credentials-exception";
 import { refreshRequestDTO } from "../dto/auth/refresh-request.dto";
+import { TokenExpiredError } from "jsonwebtoken";
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
   .decorate("AuthService", new AuthService())
   .error("400", UserAlreadyExistsException)
   .error("404", UserNotFoundException)
   .error("401", InvalidCredentialsException)
-
+  .error("401", TokenExpiredError)
   .post("/sign-up", async ({ body, AuthService }) => AuthService.signUp(body), {
     body: signUpRequestDTO,
   })

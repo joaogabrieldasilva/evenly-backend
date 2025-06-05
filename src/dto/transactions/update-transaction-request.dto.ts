@@ -1,8 +1,8 @@
 import { t } from "elysia";
 
-const createTransactionRequestDTO = t.Object(
+const updateTransactionRequestDTO = t.Object(
   {
-    amount: t.Number({ error: "amount must be informed" }),
+    amount: t.Integer({ error: "amount must be informed" }),
     payerId: t.Integer({ error: "payerId must be informed" }),
     description: t.Optional(t.String()),
     category: t.Optional(t.String()),
@@ -14,6 +14,6 @@ const createTransactionRequestDTO = t.Object(
   { error: "Invalid request body" }
 );
 
-type CreateTransactionRequestDTO = typeof createTransactionRequestDTO.static;
+type UpdateTransactionRequestDTO = typeof updateTransactionRequestDTO.static;
 
-export { createTransactionRequestDTO, CreateTransactionRequestDTO };
+export { updateTransactionRequestDTO, UpdateTransactionRequestDTO };

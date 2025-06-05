@@ -21,15 +21,16 @@ export abstract class GroupService {
     ownerId: number,
     { name, description }: CreateTripGroupRequestDTO
   ) {
-    return db.transaction(async (transaction) => {
+    return await db.transaction(async (transaction) => {
       const group = (
         await transaction
           .insert(groups)
           .values({
             name,
             description,
+            ownerId,
           })
-          .returning({ id: groups.id })
+          .returning()
       )[0];
 
       await transaction.insert(usersGroups).values({
@@ -37,8 +38,10 @@ export abstract class GroupService {
         groupId: group.id,
       });
 
+      console.log(group);
+
       return {
-        groupId: group,
+        groupId: group.id,
       };
     });
   }
@@ -49,11 +52,14 @@ export abstract class GroupService {
         .select({
           id: groups.id,
           name: groups.name,
+          ownerId: groups.ownerId,
+          createdAt: groups.createdAt,
           description: groups.description,
           members: sql`array((select ${users.profile_image} from ${usersGroups} JOIN ${users} ON ${users.id} = ${usersGroups.userId} where ${usersGroups.groupId} = ${groups.id}))`,
-          totalExpenses: sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100.as(
+          totalExpenses:
+            sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100`.as(
               "totalExpenses"
-            )`,
+            ),
         })
         .from(groups)
         .leftJoin(transactions, eq(transactions.groupId, groups.id))
@@ -73,69 +79,99 @@ export abstract class GroupService {
     userId: number,
     { cursor = 0, pageSize = 10 }: PaginatedRequestDTO
   ) {
-    const userGroups = await db
-      .select({
-        id: groups.id,
-        name: groups.name,
-        description: groups.description,
-        members: sql`array((select ${users.profile_image} from ${usersGroups} JOIN ${users} ON ${users.id} = ${usersGroups.userId} where ${usersGroups.groupId} = ${groups.id}))`,
-        totalExpenses: sql`<number>CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100.as(
-            "totalExpenses"
-          )`,
-      })
-      .from(groups)
-      .leftJoin(transactions, eq(transactions.groupId, groups.id))
-      .orderBy(groups.id)
-      .limit(pageSize + 1)
-      .where(
-        and(
-          inArray(
-            groups.id,
-            db
-              .select({
-                groupId: usersGroups.groupId,
-              })
-              .from(usersGroups)
-              .where(eq(usersGroups.userId, userId))
-          ),
-          cursor ? gt(groups.id, cursor) : undefined
+    const userGroups = await db.execute(
+      sql`
+        SELECT 
+          groups.id,
+          groups.name,
+          groups.description,
+          array(
+            SELECT json_build_object(
+              'id', users.id,
+              'name', users.name,
+              'profileImage', users.profile_image
+            )
+            FROM users_groups
+            JOIN users ON users.id = users_groups.user_id
+            WHERE users_groups.group_id = groups.id
+          ) AS members,
+          CAST(COALESCE(SUM(transactions.amount), 0) AS INT) / 100 AS "totalExpenses"
+        FROM groups
+        LEFT JOIN transactions ON transactions.group_id = groups.id
+        WHERE groups.id IN (
+          SELECT users_groups.group_id
+          FROM users_groups
+          WHERE users_groups.user_id = ${userId}
         )
-      )
-      .groupBy(groups.id);
+        ${cursor ? sql`AND groups.id > ${cursor}` : sql``}
+        GROUP BY groups.id
+        ORDER BY groups.id
+        LIMIT ${pageSize + 1}
+      `
+    );
 
-    const hasMoreItems = userGroups.length >= pageSize + 1;
+    const rows = userGroups.rows as {
+      id: number;
+      name: string;
+      description: string;
+      members: any[];
+      totalExpenses: number;
+    }[];
+
+    const hasMoreItems = rows.length >= pageSize + 1;
 
     return {
-      groups: hasMoreItems
-        ? userGroups.slice(0, userGroups.length - 1)
-        : userGroups,
-      nextCursor: hasMoreItems ? userGroups[userGroups.length - 2]?.id : null,
+      groups: hasMoreItems ? rows.slice(0, rows.length - 1) : rows,
+      nextCursor: hasMoreItems ? rows[rows.length - 2]?.id : null,
     };
   }
 
-  static async findGroupsUsers(groupId: number) {
-    const response = await db
-      .select({
-        user: {
-          id: users.id,
-          name: users.name,
-        },
-      })
-      .from(users)
-      .innerJoin(usersGroups, eq(users.id, usersGroups.userId))
-      .innerJoin(groups, eq(usersGroups.groupId, groups.id))
-      .where(eq(groups.id, groupId));
+  static async getGroupMembersWithBalance(groupId: number) {
+    const result = await db.execute(
+      sql`
+        SELECT 
+          users.id,
+          users.name,
+          users.profile_image AS "profileImage",
+          ROUND((COALESCE(received.received, 0) - COALESCE(paid.paid, 0))::numeric / 100, 2) AS "balance"
+        FROM users
+        INNER JOIN users_groups ON users_groups.group_id = ${groupId} AND users_groups.user_id = users.id
+        LEFT JOIN (
+          SELECT 
+            user_id,
+            SUM(amount)::numeric AS paid
+          FROM users_transactions
+          WHERE group_id = ${groupId}
+          GROUP BY user_id
+        ) AS paid ON users.id = paid.user_id
+        LEFT JOIN (
+          SELECT 
+            transactions.payer_id AS user_id,
+            SUM(users_transactions.amount)::numeric AS received
+          FROM users_transactions
+          INNER JOIN transactions ON transactions.id = users_transactions.transaction_id
+          WHERE users_transactions.group_id = ${groupId}
+          GROUP BY transactions.payer_id
+        ) AS received ON users.id = received.user_id
+      `
+    );
 
-    return response.map((item) => item.user);
+    return result.rows as {
+      id: number;
+      name: string;
+      profileImage: string;
+      balance: number;
+    }[];
   }
 
   static async getGroupTotalSpent(groupId: number) {
     const groupTotalSpent = (
       await db
         .select({
-          total: sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100.as(
+          total:
+            sql<number>`CAST(COALESCE(SUM(${transactions.amount}), 0) AS INT) / 100`.as(
               "total"
-            )`,
+            ),
         })
         .from(transactions)
         .where(eq(transactions.groupId, groupId))
@@ -177,5 +213,20 @@ export abstract class GroupService {
     return {
       membersCount: membersCountResult?.membersCount ?? 0,
     };
+  }
+
+  static async getGroupMembers(groupId: number) {
+    const membersResult = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        profileImage: users.profile_image,
+      })
+      .from(groups)
+      .innerJoin(usersGroups, eq(usersGroups.groupId, groups.id))
+      .innerJoin(users, eq(users.id, usersGroups.userId))
+      .where(eq(groups.id, groupId));
+
+    return membersResult;
   }
 }
